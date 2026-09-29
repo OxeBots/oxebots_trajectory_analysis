@@ -1,0 +1,7 @@
+# Imagens geradas automaticamente pelo benchmark
+imagens/*.png
+!imagens/.gitkeep
+
+# Python cache
+__pycache__/
+*.pyc
