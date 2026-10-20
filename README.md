@@ -238,7 +238,7 @@ ros2 launch oxebots_trajectory_analysis trajectory_benchmark.launch.py \
 ---
 
 ### Cenário E: Modo Paralelo (Com `run_match.sh` ou Robô Real já rodando)
-Se você já estiver executando o `./run_match.sh` (partida) ou o `robot-comm.launch.py` (robôs reais) em outro terminal, você roda apenas o gerador e o plot (padrão `standalone:=false`):
+Se você já estiver executando o `./run_match.sh` (partida) ou o `ssl-new.launch.py mode:=game` (robôs reais) em outro terminal, você roda apenas o gerador e o plot (padrão `standalone:=false`):
 
 ```bash
 ros2 launch oxebots_trajectory_analysis trajectory_benchmark.launch.py \
