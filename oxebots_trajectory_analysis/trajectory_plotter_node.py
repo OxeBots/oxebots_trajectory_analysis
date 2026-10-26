@@ -48,20 +48,20 @@ def get_default_image_dir() -> str:
 
     curr = os.path.abspath(__file__)
 
-    # Case 1: Running from source tree or symlink-installed package
-    pkg_src_dir = os.path.dirname(os.path.dirname(curr))
-    if os.path.basename(pkg_src_dir) == 'oxebots_trajectory_analysis':
-        candidate = os.path.join(pkg_src_dir, 'imagens')
-        if os.path.exists(candidate) or os.path.exists(pkg_src_dir):
-            return candidate
-
-    # Case 2: Running from colcon build/install directories
+    # Case 1: Running from colcon build/install directories -> redirect to src/
     for sub in ['/build/oxebots_trajectory_analysis', '/install/oxebots_trajectory_analysis']:
         if sub in curr:
             ws_root = curr.split(sub)[0]
             candidate = os.path.join(ws_root, 'src', 'oxebots_trajectory_analysis', 'imagens')
             if os.path.exists(os.path.dirname(candidate)):
                 return candidate
+
+    # Case 2: Running directly from source tree
+    pkg_src_dir = os.path.dirname(os.path.dirname(curr))
+    if os.path.basename(pkg_src_dir) == 'oxebots_trajectory_analysis':
+        candidate = os.path.join(pkg_src_dir, 'imagens')
+        if os.path.exists(candidate) or os.path.exists(pkg_src_dir):
+            return candidate
 
     # Case 3: Check colcon / ament environment prefixes
     for env_var in ['COLCON_PREFIX_PATH', 'AMENT_PREFIX_PATH']:
