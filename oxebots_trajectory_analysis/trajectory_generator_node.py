@@ -44,10 +44,10 @@ def normalize_pattern(raw: str) -> str:
     """Normalize user-supplied pattern string aliases into canonical identifiers.
 
     Args:
-        raw: Raw pattern name or common alias (e.g., 'circulo', 'wave', 'quadrado').
+        raw: Raw pattern name or common alias (e.g., 'circulo', 'wave', 'quadrado', 'line').
 
     Returns:
-        str: Canonical pattern string ('circle', 'square', or 'square_wave').
+        str: Canonical pattern string ('circle', 'square', 'square_wave', or 'line').
     """
     p = str(raw).strip().lower()
     if p in ('circle', 'circulo', 'c'):
@@ -56,6 +56,8 @@ def normalize_pattern(raw: str) -> str:
         return 'square'
     if p in ('square_wave', 'wave', 'onda', 'onda_quadrada', 'onda-quadrada', 'squarewave', 'sw'):
         return 'square_wave'
+    if p in ('line', 'linha', 'l', 'reta', 'r'):
+        return 'line'
     return p
 
 
@@ -319,9 +321,9 @@ class TrajectoryGeneratorNode(Node):
             self.initialized_start = True
             return
 
-        # Linear segments (Square / Square Wave): initial synchronization to nearest waypoint
+        # Linear segments (Square / Square Wave / Line): initial synchronization
         if not self.initialized_start:
-            if self.pattern == 'square_wave':
+            if self.pattern in ('square_wave', 'line'):
                 self.current_idx = 0
             else:
                 dists = [
