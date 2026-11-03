@@ -92,6 +92,12 @@ class TrajectoryGeneratorNode(Node):
         self.declare_parameter('circle_center_x', 0.0)
         self.declare_parameter('circle_center_y', 0.0)
 
+        # Geometric parameters for line trajectories
+        self.declare_parameter('length', 1.0)
+        self.declare_parameter('x_initial',-1.0) #declarete here first point
+        self.declare_parameter('y_initial',-1.0) 
+        self.declare_parameter('line_angle', 1.57)
+
         # Geometric parameters for square trajectories
         self.declare_parameter('square_side', 1.4)
         self.declare_parameter('square_center_x', 0.0)
@@ -178,6 +184,24 @@ class TrajectoryGeneratorNode(Node):
                 x = center_x + radius * math.cos(th)
                 y = center_y + radius * math.sin(th)
                 yaw = math.atan2(center_y - y, center_x - x) if face_center else th + math.pi / 2.0
+                points.append((float(x), float(y), float(yaw)))
+            return points
+
+        elif pattern == "line":
+            x_0 = float(self.get_parameter('x_initial').value)
+            y_0 = float(self.get_parameter('y_initial').value)
+            line_length = float(self.get_parameter('length').value)
+            line_angle = float(self.get_parameter('line_angle').value)
+
+            points: list[tuple[float,float, float]] = []
+            s_vals = np.linspace(0.0, line_length, num_points)
+            for s in s_vals:
+                # Calculate x and Y
+                x = x_0 + s * math.cos(line_angle)
+                y = y_0 + s * math.sin(line_angle)
+                # if face_center  true, look to initial pont else look de destination point
+                tangent_yaw = line_angle
+                yaw = math.atan2(y_0 - y, x_0 - x) if face_center and s > 0 else tangent_yaw
                 points.append((float(x), float(y), float(yaw)))
             return points
 
@@ -315,7 +339,7 @@ class TrajectoryGeneratorNode(Node):
         )
 
         # Invert direction upon reaching boundary limits in non-closed contours
-        if self.pattern == 'square_wave':
+        if self.pattern in ('square_wave', 'line'):
             if self.current_idx >= num_points - 5 and self.wave_direction == 1:
                 self.wave_direction = -1
             elif self.current_idx <= 5 and self.wave_direction == -1:
@@ -325,7 +349,7 @@ class TrajectoryGeneratorNode(Node):
         if best_dist < 0.25:
             search_range = max(5, num_points // 15)
             for step in range(1, search_range + 1):
-                if self.pattern == 'square_wave':
+                if self.pattern in ('square_wave', 'line'):
                     test_idx = self.current_idx + self.wave_direction * step
                     if test_idx >= num_points or test_idx < 0:
                         continue
@@ -371,7 +395,7 @@ class TrajectoryGeneratorNode(Node):
 
         num_window_points = min(self.path_window_size, num_points)
         for i in range(num_window_points):
-            if self.pattern == 'square_wave':
+            if self.pattern in ('square_wave','line'):
                 idx = max(0, min(num_points - 1, self.current_idx + self.wave_direction * i))
             else:
                 idx = (self.current_idx + i) % num_points
@@ -417,7 +441,7 @@ class TrajectoryGeneratorNode(Node):
 
         #Active lookahead target pose for reference visualization
         lookahead_steps = int(self.get_parameter('lookahead_steps').value)
-        if self.pattern == 'square_wave':
+        if self.pattern in ('square_wave', 'line'):
             goal_idx = max(0, min(num_points - 1, self.current_idx + self.wave_direction * lookahead_steps))
         else:
             goal_idx = (self.current_idx + lookahead_steps) % num_points

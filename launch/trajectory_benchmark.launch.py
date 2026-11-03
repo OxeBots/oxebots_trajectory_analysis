@@ -144,6 +144,11 @@ def generate_launch_description() -> LaunchDescription:
     declare_circle_center_x = DeclareLaunchArgument('circle_center_x', default_value='0.0', description='Center X coordinate of the circle.')
     declare_circle_center_y = DeclareLaunchArgument('circle_center_y', default_value='0.0', description='Center Y coordinate of the circle.')
 
+    declare_line_length = DeclareLaunchArgument('length', default_value='1.0', description='Length in meters of line')
+    declare_line_initial_x = DeclareLaunchArgument('x_initial', default_value='-1.0', description='position x initial in meters of line')
+    declare_line_initial_y = DeclareLaunchArgument('y_initial', default_value='-1.0', description='position y initial in meters of line')
+    declare_line_angle = DeclareLaunchArgument('line_angle', default_value='1.57', description='angle in in radius of line')
+    
     declare_square_side = DeclareLaunchArgument('square_side', default_value='1.4', description='Side length of the square in meters.')
     declare_square_center_x = DeclareLaunchArgument('square_center_x', default_value='0.0', description='Center X coordinate of the square.')
     declare_square_center_y = DeclareLaunchArgument('square_center_y', default_value='0.0', description='Center Y coordinate of the square.')
@@ -186,6 +191,10 @@ def generate_launch_description() -> LaunchDescription:
     wave_num_cycles = LaunchConfiguration('wave_num_cycles')
     wave_center_x = LaunchConfiguration('wave_center_x')
     wave_center_y = LaunchConfiguration('wave_center_y')
+    length = LaunchConfiguration('length')
+    x_initial = LaunchConfiguration('x_initial')
+    y_initial = LaunchConfiguration('y_initial')
+    line_angle = LaunchConfiguration('line_angle')
 
     #Analytical Trajectory Generator Node
     analytic_gen_node = Node(
@@ -211,6 +220,10 @@ def generate_launch_description() -> LaunchDescription:
             'wave_num_cycles': wave_num_cycles,
             'wave_center_x': wave_center_x,
             'wave_center_y': wave_center_y,
+            'length': length,
+            'x_initial': x_initial,
+            'y_initial': y_initial,
+            'line_angle': line_angle,
         }],
     )
 
@@ -347,6 +360,10 @@ def generate_launch_description() -> LaunchDescription:
         declare_wave_cycles,
         declare_wave_center_x,
         declare_wave_center_y,
+        declare_line_length,
+        declare_line_initial_x,
+        declare_line_initial_y,
+        declare_line_angle,
         analytic_gen_node,
         plotter_node,
         standalone_vision,
