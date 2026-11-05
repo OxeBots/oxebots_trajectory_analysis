@@ -302,6 +302,8 @@ def generate_launch_description() -> LaunchDescription:
                 'max_linear_speed': max_linear_speed,
                 'max_angular_speed': max_angular_speed,
                 'p_gain_angular': p_gain_angular,
+                # A rota vem do gerador (sem /robot_goal): ela é a intenção que renova o watchdog
+                'path_renews_watchdog': True,
             }
         ],
         remappings=[
