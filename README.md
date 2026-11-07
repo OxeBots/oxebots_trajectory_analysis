@@ -31,29 +31,66 @@ O módulo adota uma abordagem discretizada tanto no planejamento quanto na captu
 
 ---
 
+## Configuração de Coordenadas e Meia Quadra (`config/trajectory_config.yaml`)
+
+Todas as coordenadas geométricas de centro e parâmetros de trajetória podem ser facilmente editadas no arquivo de configuração YAML:
+[`config/trajectory_config.yaml`](file:///home/matheusbreno/ws/software_ws/src/oxebots_trajectory_analysis/config/trajectory_config.yaml).
+
+### Teste em Meia Quadra
+O campo oficial da **Entry Division** possui dimensões de **4.5m de comprimento por 3.0m de largura** (X varia de $-2.25\text{m}$ a $+2.25\text{m}$, e Y de $-1.50\text{m}$ a $+1.50\text{m}$).
+
+Se você possui apenas **metade da quadra para realizar os testes**, basta alterar as coordenadas globais de centro:
+* **Meia quadra esquerda:** `center_x: -1.0`, `center_y: 0.0`
+* **Meia quadra direita:** `center_x: 1.0`, `center_y: 0.0`
+* **Centro total do campo:** `center_x: 0.0`, `center_y: 0.0`
+
+Todas as figuras (círculo, quadrado, onda quadrada e reta) assumem `center_x` e `center_y` automaticamente como origem/centro.
+
+```yaml
+# config/trajectory_config.yaml
+trajectory_generator_node:
+  ros__parameters:
+    center_x: -1.0   # Centro deslocado para meia quadra esquerda
+    center_y: 0.0
+    pattern: "circle"
+    circle_radius: 0.8
+    total_points: 150
+```
+
+> [!TIP]
+> Também é possível sobrepor as coordenadas diretamente via linha de comando no launch:
+> `ros2 launch oxebots_trajectory_analysis trajectory_benchmark.launch.py center_x:=-1.0 center_y:=0.0`
+
+---
+
 ## Geometria e Dimensões dos Padrões
 
-O campo oficial da **Entry Division** possui dimensões de **4.5m de comprimento por 3.0m de largura**. O centro do campo é a origem das coordenadas: **$(x=0.0, y=0.0)$**.
+O campo oficial da **Entry Division** possui dimensões de **4.5m de comprimento por 3.0m de largura**. O centro padrão do campo é a origem das coordenadas: **$(x=0.0, y=0.0)$**, a menos que configurado em `center_x` e `center_y`.
 
 ### 1. Círculo (`circle`)
-* **Centro:** $(x = 0.0\,\text{m},\, y = 0.0\,\text{m})$ — centro do campo.
+* **Centro:** $(x = \text{center\_x},\, y = \text{center\_y})$ (padrão: $(0.0, 0.0)$).
 * **Raio ($R$):** **$0.80\,\text{m}$** (diâmetro de $1.60\,\text{m}$).
-* **Ponto Inicial:** **$(x = +0.80\,\text{m},\, y = 0.0\,\text{m})$**
-* **Sentido:** **Anti-horário** (sai de $(+0.8, 0.0)$ e sobe em direção ao norte $(0.0, +0.8)$).
+* **Ponto Inicial:** **$(x = \text{center\_x} + 0.80\,\text{m},\, y = \text{center\_y})$**
+* **Sentido:** **Anti-horário**.
 * **Compensação de Curvatura:** Possui termo feedforward geométrico ($\Delta r \approx L^2 / 2R$) e feedback proporcional radial para cancelar o corte de corda inerente ao *Pure Pursuit*.
 
 ### 2. Quadrado (`square`)
-* **Centro:** $(x = 0.0\,\text{m},\, y = 0.0\,\text{m})$
+* **Centro:** $(x = \text{center\_x},\, y = \text{center\_y})$ (padrão: $(0.0, 0.0)$).
 * **Tamanho do Lado:** **$1.40\,\text{m}$** ($\pm 0.70\,\text{m}$ do centro).
-* **Ponto Inicial:** **$(-0.70\,\text{m},\, -0.70\,\text{m})$** (canto inferior esquerdo).
+* **Ponto Inicial:** **$(\text{center\_x} - 0.70\,\text{m},\, \text{center\_y} - 0.70\,\text{m})$** (canto inferior esquerdo).
 * **Sequência dos Vértices:** Sentido anti-horário percorrendo os 4 vértices sequencialmente.
 
 ### 3. Onda Quadrada (`square_wave`)
-* **Centro:** $(x = 0.0\,\text{m},\, y = 0.0\,\text{m})$
-* **Amplitude ($A$):** **$0.50\,\text{m}$** (degrau pico-a-pico de $1.0\,\text{m}$, variando entre $Y = -0.50\,\text{m}$ e $Y = +0.50\,\text{m}$).
+* **Centro:** $(x = \text{center\_x},\, y = \text{center\_y})$ (padrão: $(0.0, 0.0)$).
+* **Amplitude ($A$):** **$0.50\,\text{m}$** (degrau pico-a-pico de $1.0\,\text{m}$, variando entre $\text{center\_y} - 0.50\,\text{m}$ e $\text{center\_y} + 0.50\,\text{m}$).
 * **Comprimento de cada degrau em X:** **$0.60\,\text{m}$**.
-* **Ponto Inicial:** **$(-1.20\,\text{m},\, -0.50\,\text{m})$**
+* **Ponto Inicial:** **$(\text{center\_x} - 1.20\,\text{m},\, \text{center\_y} - 0.50\,\text{m})$**
 * **Propósito:** Medir a resposta ao degrau (*step response*), o sobressinal (*overshoot*) e o tempo de estabilização do robô após curvas de 90°.
+
+### 4. Reta (`line`)
+* **Ponto Inicial:** $(\text{center\_x}, \text{center\_y})$ caso `x_initial` e `y_initial` não sejam definidos.
+* **Comprimento:** $1.00\,\text{m}$ (configurável via `length`).
+* **Ângulo:** $1.57\,\text{rad}$ ($90^\circ$, configurável via `line_angle`).
 
 ---
 

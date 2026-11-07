@@ -16,10 +16,69 @@ import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, OpaqueFunction
 from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
+
+
+def setup_trajectory_generator_node(context, *args, **kwargs) -> list[Node]:
+    """Dynamically configure trajectory_generator_node with YAML and CLI overrides."""
+    config_path = LaunchConfiguration('trajectory_config').perform(context)
+
+    node_params: list[object] = []
+    if config_path and os.path.exists(config_path):
+        node_params.append(config_path)
+
+    cli_overrides: dict[str, object] = {}
+    robot_id_val = int(LaunchConfiguration('robot_id').perform(context))
+    cli_overrides['robot_id'] = robot_id_val
+
+    param_converters = {
+        'pattern': str,
+        'center_x': float,
+        'center_y': float,
+        'total_points': int,
+        'path_window_size': int,
+        'lookahead_steps': int,
+        'face_center': lambda v: v.lower() in ('true', '1', 'yes'),
+        'circle_radius': float,
+        'circle_center_x': float,
+        'circle_center_y': float,
+        'square_side': float,
+        'square_center_x': float,
+        'square_center_y': float,
+        'wave_amplitude': float,
+        'wave_step_length': float,
+        'wave_num_cycles': int,
+        'wave_center_x': float,
+        'wave_center_y': float,
+        'length': float,
+        'x_initial': float,
+        'y_initial': float,
+        'line_angle': float,
+    }
+
+    for param_name, converter in param_converters.items():
+        val = LaunchConfiguration(param_name).perform(context)
+        if val != '':
+            try:
+                cli_overrides[param_name] = converter(val)
+            except Exception:
+                cli_overrides[param_name] = val
+
+    if cli_overrides:
+        node_params.append(cli_overrides)
+
+    return [
+        Node(
+            package='oxebots_trajectory_analysis',
+            executable='trajectory_generator_node',
+            name='trajectory_generator_node',
+            output='screen',
+            parameters=node_params,
+        )
+    ]
 
 
 def generate_launch_description() -> LaunchDescription:
@@ -31,7 +90,22 @@ def generate_launch_description() -> LaunchDescription:
     bringup_pkg_share = get_package_share_directory('oxebots_bringup')
     default_config_file = os.path.join(bringup_pkg_share, 'config', 'match_config.yaml')
 
+    analysis_pkg_share = get_package_share_directory('oxebots_trajectory_analysis')
+    src_config_file = os.path.abspath(os.path.join(
+        os.path.dirname(__file__), '..', 'config', 'trajectory_config.yaml'
+    ))
+    default_trajectory_config = (
+        src_config_file if os.path.exists(src_config_file)
+        else os.path.join(analysis_pkg_share, 'config', 'trajectory_config.yaml')
+    )
+
     # Primary operational arguments
+    declare_trajectory_config = DeclareLaunchArgument(
+        'trajectory_config',
+        default_value=default_trajectory_config,
+        description='Path to the trajectory YAML configuration file.',
+    )
+
     declare_robot_id = DeclareLaunchArgument(
         'robot_id',
         default_value='0',
@@ -40,8 +114,20 @@ def generate_launch_description() -> LaunchDescription:
 
     declare_pattern = DeclareLaunchArgument(
         'pattern',
-        default_value='circle',
-        description='Geometric trajectory pattern: "circle", "square", or "square_wave".',
+        default_value='',
+        description='Geometric trajectory pattern: "circle", "square", "square_wave", or "line" (reads from YAML if empty).',
+    )
+
+    declare_center_x = DeclareLaunchArgument(
+        'center_x',
+        default_value='',
+        description='Global trajectory center X coordinate in meters (reads from YAML if empty).',
+    )
+
+    declare_center_y = DeclareLaunchArgument(
+        'center_y',
+        default_value='',
+        description='Global trajectory center Y coordinate in meters (reads from YAML if empty).',
     )
 
     declare_run_plotter = DeclareLaunchArgument(
@@ -93,20 +179,20 @@ def generate_launch_description() -> LaunchDescription:
 
     declare_lookahead_steps = DeclareLaunchArgument(
         'lookahead_steps',
-        default_value='2',
-        description='Number of steps ahead in the reference array (~33 mm per step with 150 points).',
+        default_value='',
+        description='Number of steps ahead in the reference array (reads from YAML if empty).',
     )
 
     declare_total_points = DeclareLaunchArgument(
         'total_points',
-        default_value='150',
-        description='Total number of discrete nodes along the geometric reference path.',
+        default_value='',
+        description='Total number of discrete nodes along the geometric reference path (reads from YAML if empty).',
     )
 
     declare_path_window_size = DeclareLaunchArgument(
         'path_window_size',
-        default_value='15',
-        description='Sliding window size of waypoints published to the path follower.',
+        default_value='',
+        description='Sliding window size of waypoints published to the path follower (reads from YAML if empty).',
     )
 
     declare_p_gain_linear = DeclareLaunchArgument(
@@ -135,33 +221,32 @@ def generate_launch_description() -> LaunchDescription:
 
     declare_face_center = DeclareLaunchArgument(
         'face_center',
-        default_value='true',
-        description='Whether to keep the robot heading oriented toward the trajectory center.',
+        default_value='',
+        description='Whether to keep the robot heading oriented toward the trajectory center (reads from YAML if empty).',
     )
 
-    # Parametric geometry definitions
-    declare_circle_radius = DeclareLaunchArgument('circle_radius', default_value='0.8', description='Radius of the circle in meters.')
-    declare_circle_center_x = DeclareLaunchArgument('circle_center_x', default_value='0.0', description='Center X coordinate of the circle.')
-    declare_circle_center_y = DeclareLaunchArgument('circle_center_y', default_value='0.0', description='Center Y coordinate of the circle.')
+    # Parametric geometry definitions (all read from YAML if empty)
+    declare_circle_radius = DeclareLaunchArgument('circle_radius', default_value='', description='Radius of the circle in meters.')
+    declare_circle_center_x = DeclareLaunchArgument('circle_center_x', default_value='', description='Center X coordinate of the circle.')
+    declare_circle_center_y = DeclareLaunchArgument('circle_center_y', default_value='', description='Center Y coordinate of the circle.')
 
-    declare_line_length = DeclareLaunchArgument('length', default_value='1.0', description='Length in meters of line')
-    declare_line_initial_x = DeclareLaunchArgument('x_initial', default_value='-1.0', description='position x initial in meters of line')
-    declare_line_initial_y = DeclareLaunchArgument('y_initial', default_value='-1.0', description='position y initial in meters of line')
-    declare_line_angle = DeclareLaunchArgument('line_angle', default_value='1.57', description='angle in in radius of line')
-    
-    declare_square_side = DeclareLaunchArgument('square_side', default_value='1.4', description='Side length of the square in meters.')
-    declare_square_center_x = DeclareLaunchArgument('square_center_x', default_value='0.0', description='Center X coordinate of the square.')
-    declare_square_center_y = DeclareLaunchArgument('square_center_y', default_value='0.0', description='Center Y coordinate of the square.')
+    declare_line_length = DeclareLaunchArgument('length', default_value='', description='Length in meters of line.')
+    declare_line_initial_x = DeclareLaunchArgument('x_initial', default_value='', description='Position x initial in meters of line.')
+    declare_line_initial_y = DeclareLaunchArgument('y_initial', default_value='', description='Position y initial in meters of line.')
+    declare_line_angle = DeclareLaunchArgument('line_angle', default_value='', description='Angle in radians of line.')
 
-    declare_wave_amp = DeclareLaunchArgument('wave_amplitude', default_value='0.5', description='Y amplitude of the square wave.')
-    declare_wave_step = DeclareLaunchArgument('wave_step_length', default_value='0.6', description='X step length for each wave transition.')
-    declare_wave_cycles = DeclareLaunchArgument('wave_num_cycles', default_value='2', description='Total complete wave cycles.')
-    declare_wave_center_x = DeclareLaunchArgument('wave_center_x', default_value='0.0', description='Center X coordinate of the square wave.')
-    declare_wave_center_y = DeclareLaunchArgument('wave_center_y', default_value='0.0', description='Center Y coordinate of the square wave.')
+    declare_square_side = DeclareLaunchArgument('square_side', default_value='', description='Side length of the square in meters.')
+    declare_square_center_x = DeclareLaunchArgument('square_center_x', default_value='', description='Center X coordinate of the square.')
+    declare_square_center_y = DeclareLaunchArgument('square_center_y', default_value='', description='Center Y coordinate of the square.')
+
+    declare_wave_amp = DeclareLaunchArgument('wave_amplitude', default_value='', description='Y amplitude of the square wave.')
+    declare_wave_step = DeclareLaunchArgument('wave_step_length', default_value='', description='X step length for each wave transition.')
+    declare_wave_cycles = DeclareLaunchArgument('wave_num_cycles', default_value='', description='Total complete wave cycles.')
+    declare_wave_center_x = DeclareLaunchArgument('wave_center_x', default_value='', description='Center X coordinate of the square wave.')
+    declare_wave_center_y = DeclareLaunchArgument('wave_center_y', default_value='', description='Center Y coordinate of the square wave.')
 
     # Configuration substitutions
     robot_id = LaunchConfiguration('robot_id')
-    pattern = LaunchConfiguration('pattern')
     run_plotter = LaunchConfiguration('run_plotter')
     record_bag = LaunchConfiguration('record_bag')
     standalone = LaunchConfiguration('standalone')
@@ -169,65 +254,12 @@ def generate_launch_description() -> LaunchDescription:
     use_movement_calculation = LaunchConfiguration('use_movement_calculation')
     margin_mm = LaunchConfiguration('margin_mm')
     lookahead_mm = LaunchConfiguration('lookahead_mm')
-    lookahead_steps = LaunchConfiguration('lookahead_steps')
-    total_points = LaunchConfiguration('total_points')
-    path_window_size = LaunchConfiguration('path_window_size')
     p_gain_linear = LaunchConfiguration('p_gain_linear')
     max_linear_speed = LaunchConfiguration('max_linear_speed')
     max_angular_speed = LaunchConfiguration('max_angular_speed')
     p_gain_angular = LaunchConfiguration('p_gain_angular')
-    face_center = LaunchConfiguration('face_center')
 
-
-
-    circle_radius = LaunchConfiguration('circle_radius')
-    circle_center_x = LaunchConfiguration('circle_center_x')
-    circle_center_y = LaunchConfiguration('circle_center_y')
-    square_side = LaunchConfiguration('square_side')
-    square_center_x = LaunchConfiguration('square_center_x')
-    square_center_y = LaunchConfiguration('square_center_y')
-    wave_amplitude = LaunchConfiguration('wave_amplitude')
-    wave_step_length = LaunchConfiguration('wave_step_length')
-    wave_num_cycles = LaunchConfiguration('wave_num_cycles')
-    wave_center_x = LaunchConfiguration('wave_center_x')
-    wave_center_y = LaunchConfiguration('wave_center_y')
-    length = LaunchConfiguration('length')
-    x_initial = LaunchConfiguration('x_initial')
-    y_initial = LaunchConfiguration('y_initial')
-    line_angle = LaunchConfiguration('line_angle')
-
-    #Analytical Trajectory Generator Node
-    analytic_gen_node = Node(
-        package='oxebots_trajectory_analysis',
-        executable='trajectory_generator_node',
-        name='trajectory_generator_node',
-        output='screen',
-        parameters=[{
-            'robot_id': robot_id,
-            'pattern': pattern,
-            'total_points': total_points,
-            'path_window_size': path_window_size,
-            'lookahead_steps': lookahead_steps,
-            'face_center': face_center,
-            'circle_radius': circle_radius,
-            'circle_center_x': circle_center_x,
-            'circle_center_y': circle_center_y,
-            'square_side': square_side,
-            'square_center_x': square_center_x,
-            'square_center_y': square_center_y,
-            'wave_amplitude': wave_amplitude,
-            'wave_step_length': wave_step_length,
-            'wave_num_cycles': wave_num_cycles,
-            'wave_center_x': wave_center_x,
-            'wave_center_y': wave_center_y,
-            'length': length,
-            'x_initial': x_initial,
-            'y_initial': y_initial,
-            'line_angle': line_angle,
-        }],
-    )
-
-    #Real-Time Matplotlib Visualization Node
+    # Real-Time Matplotlib Visualization Node
     plotter_node = Node(
         package='oxebots_trajectory_analysis',
         executable='trajectory_plotter_node',
@@ -241,7 +273,7 @@ def generate_launch_description() -> LaunchDescription:
         condition=IfCondition(run_plotter),
     )
 
-    #Auxiliary Nodes for Standalone Execution
+    # Auxiliary Nodes for Standalone Execution
     standalone_vision = Node(
         package='ssl_ros_bridge',
         executable='vision_bridge_node',
@@ -302,7 +334,6 @@ def generate_launch_description() -> LaunchDescription:
                 'max_linear_speed': max_linear_speed,
                 'max_angular_speed': max_angular_speed,
                 'p_gain_angular': p_gain_angular,
-                # A rota vem do gerador (sem /robot_goal): ela é a intenção que renova o watchdog
                 'path_renews_watchdog': True,
             }
         ],
@@ -319,7 +350,7 @@ def generate_launch_description() -> LaunchDescription:
         ),
     )
 
-    #Optional Rosbag Recording Process
+    # Optional Rosbag Recording Process
     rosbag_record = ExecuteProcess(
         cmd=[
             'ros2', 'bag', 'record',
@@ -334,8 +365,11 @@ def generate_launch_description() -> LaunchDescription:
     )
 
     return LaunchDescription([
+        declare_trajectory_config,
         declare_robot_id,
         declare_pattern,
+        declare_center_x,
+        declare_center_y,
         declare_run_plotter,
         declare_record_bag,
         declare_standalone,
@@ -366,7 +400,7 @@ def generate_launch_description() -> LaunchDescription:
         declare_line_initial_x,
         declare_line_initial_y,
         declare_line_angle,
-        analytic_gen_node,
+        OpaqueFunction(function=setup_trajectory_generator_node),
         plotter_node,
         standalone_vision,
         standalone_observer,

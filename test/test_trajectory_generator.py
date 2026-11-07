@@ -3,11 +3,24 @@
 import math
 import numpy as np
 import pytest
+import rclpy
+from rclpy.parameter import Parameter
 
 from oxebots_trajectory_analysis.trajectory_generator_node import (
+    TrajectoryGeneratorNode,
     normalize_pattern,
     yaw_to_quaternion,
 )
+
+
+@pytest.fixture(autouse=True)
+def rclpy_session():
+    """Ensure rclpy is initialized for node tests and torn down cleanly."""
+    if not rclpy.ok():
+        rclpy.init()
+    yield
+    if rclpy.ok():
+        rclpy.shutdown()
 
 
 def test_normalize_pattern():
@@ -99,3 +112,81 @@ def test_square_geometry_boundaries():
 
         assert -half - 1e-6 <= x <= half + 1e-6
         assert -half - 1e-6 <= y <= half + 1e-6
+
+
+def test_global_center_circle_shift():
+    """Verify that setting center_x and center_y shifts a circular trajectory (half-field)."""
+    cx, cy = -1.0, 0.5
+    radius = 0.8
+    node = TrajectoryGeneratorNode(
+        parameter_overrides=[
+            Parameter('pattern', Parameter.Type.STRING, 'circle'),
+            Parameter('center_x', Parameter.Type.DOUBLE, cx),
+            Parameter('center_y', Parameter.Type.DOUBLE, cy),
+            Parameter('circle_radius', Parameter.Type.DOUBLE, radius),
+        ]
+    )
+    resolved_cx, resolved_cy = node.get_pattern_center()
+    assert pytest.approx(resolved_cx, abs=1e-6) == cx
+    assert pytest.approx(resolved_cy, abs=1e-6) == cy
+
+    # All generated points must be at distance 'radius' from (cx, cy)
+    for px, py, _ in node.full_points:
+        dist = math.hypot(px - cx, py - cy)
+        assert pytest.approx(dist, abs=1e-5) == radius
+    node.destroy_node()
+
+
+def test_specific_center_overrides_global_center():
+    """Verify pattern-specific center takes precedence over global center_x/center_y."""
+    global_cx, global_cy = -1.0, 0.0
+    spec_cx, spec_cy = 0.5, -0.3
+    node = TrajectoryGeneratorNode(
+        parameter_overrides=[
+            Parameter('pattern', Parameter.Type.STRING, 'circle'),
+            Parameter('center_x', Parameter.Type.DOUBLE, global_cx),
+            Parameter('center_y', Parameter.Type.DOUBLE, global_cy),
+            Parameter('circle_center_x', Parameter.Type.DOUBLE, spec_cx),
+            Parameter('circle_center_y', Parameter.Type.DOUBLE, spec_cy),
+        ]
+    )
+    resolved_cx, resolved_cy = node.get_pattern_center()
+    assert pytest.approx(resolved_cx, abs=1e-6) == spec_cx
+    assert pytest.approx(resolved_cy, abs=1e-6) == spec_cy
+    node.destroy_node()
+
+
+def test_global_center_square_shift():
+    """Verify that setting center_x and center_y shifts a square trajectory."""
+    cx, cy = -0.8, -0.4
+    side = 1.0
+    node = TrajectoryGeneratorNode(
+        parameter_overrides=[
+            Parameter('pattern', Parameter.Type.STRING, 'square'),
+            Parameter('center_x', Parameter.Type.DOUBLE, cx),
+            Parameter('center_y', Parameter.Type.DOUBLE, cy),
+            Parameter('square_side', Parameter.Type.DOUBLE, side),
+        ]
+    )
+    half = side / 2.0
+    for px, py, _ in node.full_points:
+        assert cx - half - 1e-5 <= px <= cx + half + 1e-5
+        assert cy - half - 1e-5 <= py <= cy + half + 1e-5
+    node.destroy_node()
+
+
+def test_global_center_line_shift():
+    """Verify that a line starts from center_x and center_y when x_initial/y_initial omitted."""
+    cx, cy = -1.2, 0.3
+    node = TrajectoryGeneratorNode(
+        parameter_overrides=[
+            Parameter('pattern', Parameter.Type.STRING, 'line'),
+            Parameter('center_x', Parameter.Type.DOUBLE, cx),
+            Parameter('center_y', Parameter.Type.DOUBLE, cy),
+            Parameter('length', Parameter.Type.DOUBLE, 1.0),
+        ]
+    )
+    first_pt = node.full_points[0]
+    assert pytest.approx(first_pt[0], abs=1e-5) == cx
+    assert pytest.approx(first_pt[1], abs=1e-5) == cy
+    node.destroy_node()
