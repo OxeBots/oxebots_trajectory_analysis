@@ -1,59 +1,31 @@
 trajectory_generator_node:
   ros__parameters:
-    # ==============================================================================
-    # Coordenadas do Centro da Trajetória (em metros)
-    #
-    # Campo oficial da SSL Entry Division: 4.5m de comprimento x 3.0m de largura.
-    #   - Eixo X varia de -2.25m a +2.25m
-    #   - Eixo Y varia de -1.50m a +1.50m
-    #   - Origem (0.0, 0.0) é o centro exato do campo (círculo central)
-    #
-    # Se você possui apenas metade do campo para testar, ajuste center_x e center_y:
-    #   - Meia quadra esquerda: center_x: -1.0, center_y: 0.0
-    #   - Meia quadra direita:  center_x:  1.0, center_y: 0.0
-    #   - Centro do campo:      center_x:  0.0, center_y: 0.0
-    #
-    # Todas as figuras (círculo, quadrado, onda e reta) utilizarão estas
-    # coordenadas como centro por padrão, a menos que sobrepostas abaixo.
-    # ==============================================================================
-    center_x: 0.0
-    center_y: 0.0
-
-    # Padrão geométrico padrão: "circle", "square", "square_wave" ou "line"
     pattern: "circle"
 
-    # ==============================================================================
-    # Parâmetros Específicos por Figura Geométrica
-    # Descomente para sobrepor o centro global (center_x/center_y) de uma figura específica:
-    # ==============================================================================
-
-    # 1. Círculo (circle)
+    # Circle configuration
+    circle_center_x: 0.0
+    circle_center_y: 0.0
     circle_radius: 0.8
-    # circle_center_x: 0.0
-    # circle_center_y: 0.0
 
-    # 2. Quadrado (square)
+    # Square configuration
+    square_center_x: 0.0
+    square_center_y: 0.0
     square_side: 1.4
-    # square_center_x: 0.0
-    # square_center_y: 0.0
 
-    # 3. Onda Quadrada (square_wave)
+    # Square wave configuration
+    wave_center_x: 0.0
+    wave_center_y: 0.0
     wave_amplitude: 0.5
     wave_step_length: 0.6
     wave_num_cycles: 2
-    # wave_center_x: 0.0
-    # wave_center_y: 0.0
 
-    # 4. Reta (line)
-    # Se x_initial e y_initial forem omitidos ou comentados, a reta parte de (center_x, center_y)
+    # Line configuration
+    x_initial: 1.0
+    y_initial: -1.0
     length: 1.0
     line_angle: 1.57
-    # x_initial: -1.0
-    # y_initial: -1.0
 
-    # ==============================================================================
-    # Parâmetros Gerais de Discretização e Controle
-    # ==============================================================================
+    # Discretization and tracking parameters
     total_points: 150
     path_window_size: 15
     lookahead_steps: 2

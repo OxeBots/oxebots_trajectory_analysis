@@ -36,8 +36,6 @@ def setup_trajectory_generator_node(context, *args, **kwargs) -> list[Node]:
 
     param_converters = {
         'pattern': str,
-        'center_x': float,
-        'center_y': float,
         'total_points': int,
         'path_window_size': int,
         'lookahead_steps': int,
@@ -116,18 +114,6 @@ def generate_launch_description() -> LaunchDescription:
         'pattern',
         default_value='',
         description='Geometric trajectory pattern: "circle", "square", "square_wave", or "line" (reads from YAML if empty).',
-    )
-
-    declare_center_x = DeclareLaunchArgument(
-        'center_x',
-        default_value='',
-        description='Global trajectory center X coordinate in meters (reads from YAML if empty).',
-    )
-
-    declare_center_y = DeclareLaunchArgument(
-        'center_y',
-        default_value='',
-        description='Global trajectory center Y coordinate in meters (reads from YAML if empty).',
     )
 
     declare_run_plotter = DeclareLaunchArgument(
@@ -368,8 +354,6 @@ def generate_launch_description() -> LaunchDescription:
         declare_trajectory_config,
         declare_robot_id,
         declare_pattern,
-        declare_center_x,
-        declare_center_y,
         declare_run_plotter,
         declare_record_bag,
         declare_standalone,

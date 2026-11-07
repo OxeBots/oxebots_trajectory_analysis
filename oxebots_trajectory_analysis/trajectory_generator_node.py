@@ -89,32 +89,28 @@ class TrajectoryGeneratorNode(Node):
         self.declare_parameter('lookahead_steps', 2)
         self.declare_parameter('face_center', True)
 
-        # Primary center coordinates (useful for half-field testing)
-        self.declare_parameter('center_x', 0.0)
-        self.declare_parameter('center_y', 0.0)
-
         # Geometric parameters for circular trajectories
         self.declare_parameter('circle_radius', 0.8)
-        self.declare_parameter('circle_center_x', float('nan'))
-        self.declare_parameter('circle_center_y', float('nan'))
+        self.declare_parameter('circle_center_x', 0.0)
+        self.declare_parameter('circle_center_y', 0.0)
 
         # Geometric parameters for line trajectories
         self.declare_parameter('length', 1.0)
-        self.declare_parameter('x_initial', float('nan'))
-        self.declare_parameter('y_initial', float('nan'))
+        self.declare_parameter('x_initial', -1.0)
+        self.declare_parameter('y_initial', -1.0)
         self.declare_parameter('line_angle', 1.57)
 
         # Geometric parameters for square trajectories
         self.declare_parameter('square_side', 1.4)
-        self.declare_parameter('square_center_x', float('nan'))
-        self.declare_parameter('square_center_y', float('nan'))
+        self.declare_parameter('square_center_x', 0.0)
+        self.declare_parameter('square_center_y', 0.0)
 
         # Geometric parameters for square-wave trajectories
         self.declare_parameter('wave_amplitude', 0.5)
         self.declare_parameter('wave_step_length', 0.6)
         self.declare_parameter('wave_num_cycles', 2)
-        self.declare_parameter('wave_center_x', float('nan'))
-        self.declare_parameter('wave_center_y', float('nan'))
+        self.declare_parameter('wave_center_x', 0.0)
+        self.declare_parameter('wave_center_y', 0.0)
 
         self.robot_id = self.get_parameter('robot_id').get_parameter_value().integer_value
         raw_pattern = self.get_parameter('pattern').get_parameter_value().string_value
@@ -167,30 +163,26 @@ class TrajectoryGeneratorNode(Node):
                 break
 
     def get_pattern_center(self) -> tuple[float, float]:
-        """Resolve center (x, y) coordinates for current pattern, defaulting to global center_x/y.
+        """Resolve center (x, y) coordinates for the active pattern.
 
         Returns:
             tuple[float, float]: Resolved (center_x, center_y) in meters.
         """
-        global_cx = float(self.get_parameter('center_x').value)
-        global_cy = float(self.get_parameter('center_y').value)
-
         pattern = self.pattern
         if pattern == 'circle':
-            param_x = float(self.get_parameter('circle_center_x').value)
-            param_y = float(self.get_parameter('circle_center_y').value)
+            cx = float(self.get_parameter('circle_center_x').value)
+            cy = float(self.get_parameter('circle_center_y').value)
         elif pattern == 'square':
-            param_x = float(self.get_parameter('square_center_x').value)
-            param_y = float(self.get_parameter('square_center_y').value)
+            cx = float(self.get_parameter('square_center_x').value)
+            cy = float(self.get_parameter('square_center_y').value)
         elif pattern == 'square_wave':
-            param_x = float(self.get_parameter('wave_center_x').value)
-            param_y = float(self.get_parameter('wave_center_y').value)
+            cx = float(self.get_parameter('wave_center_x').value)
+            cy = float(self.get_parameter('wave_center_y').value)
+        elif pattern == 'line':
+            cx = float(self.get_parameter('x_initial').value)
+            cy = float(self.get_parameter('y_initial').value)
         else:
-            param_x = float('nan')
-            param_y = float('nan')
-
-        cx = param_x if not math.isnan(param_x) else global_cx
-        cy = param_y if not math.isnan(param_y) else global_cy
+            cx, cy = 0.0, 0.0
         return cx, cy
 
     def build_static_points(self) -> list[tuple[float, float, float]]:
@@ -220,11 +212,8 @@ class TrajectoryGeneratorNode(Node):
             return points
 
         elif pattern == "line":
-            center_x, center_y = self.get_pattern_center()
-            raw_x0 = float(self.get_parameter('x_initial').value)
-            raw_y0 = float(self.get_parameter('y_initial').value)
-            x_0 = raw_x0 if not math.isnan(raw_x0) else center_x
-            y_0 = raw_y0 if not math.isnan(raw_y0) else center_y
+            x_0 = float(self.get_parameter('x_initial').value)
+            y_0 = float(self.get_parameter('y_initial').value)
             line_length = float(self.get_parameter('length').value)
             line_angle = float(self.get_parameter('line_angle').value)
 

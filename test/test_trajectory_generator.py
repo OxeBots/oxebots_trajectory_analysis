@@ -114,15 +114,15 @@ def test_square_geometry_boundaries():
         assert -half - 1e-6 <= y <= half + 1e-6
 
 
-def test_global_center_circle_shift():
-    """Verify that setting center_x and center_y shifts a circular trajectory (half-field)."""
+def test_circle_center_configuration():
+    """Verify circle center coordinates shift the generated circle path."""
     cx, cy = -1.0, 0.5
     radius = 0.8
     node = TrajectoryGeneratorNode(
         parameter_overrides=[
             Parameter('pattern', Parameter.Type.STRING, 'circle'),
-            Parameter('center_x', Parameter.Type.DOUBLE, cx),
-            Parameter('center_y', Parameter.Type.DOUBLE, cy),
+            Parameter('circle_center_x', Parameter.Type.DOUBLE, cx),
+            Parameter('circle_center_y', Parameter.Type.DOUBLE, cy),
             Parameter('circle_radius', Parameter.Type.DOUBLE, radius),
         ]
     )
@@ -130,44 +130,28 @@ def test_global_center_circle_shift():
     assert pytest.approx(resolved_cx, abs=1e-6) == cx
     assert pytest.approx(resolved_cy, abs=1e-6) == cy
 
-    # All generated points must be at distance 'radius' from (cx, cy)
     for px, py, _ in node.full_points:
         dist = math.hypot(px - cx, py - cy)
         assert pytest.approx(dist, abs=1e-5) == radius
     node.destroy_node()
 
 
-def test_specific_center_overrides_global_center():
-    """Verify pattern-specific center takes precedence over global center_x/center_y."""
-    global_cx, global_cy = -1.0, 0.0
-    spec_cx, spec_cy = 0.5, -0.3
-    node = TrajectoryGeneratorNode(
-        parameter_overrides=[
-            Parameter('pattern', Parameter.Type.STRING, 'circle'),
-            Parameter('center_x', Parameter.Type.DOUBLE, global_cx),
-            Parameter('center_y', Parameter.Type.DOUBLE, global_cy),
-            Parameter('circle_center_x', Parameter.Type.DOUBLE, spec_cx),
-            Parameter('circle_center_y', Parameter.Type.DOUBLE, spec_cy),
-        ]
-    )
-    resolved_cx, resolved_cy = node.get_pattern_center()
-    assert pytest.approx(resolved_cx, abs=1e-6) == spec_cx
-    assert pytest.approx(resolved_cy, abs=1e-6) == spec_cy
-    node.destroy_node()
-
-
-def test_global_center_square_shift():
-    """Verify that setting center_x and center_y shifts a square trajectory."""
+def test_square_center_configuration():
+    """Verify square center coordinates shift the generated square path."""
     cx, cy = -0.8, -0.4
     side = 1.0
     node = TrajectoryGeneratorNode(
         parameter_overrides=[
             Parameter('pattern', Parameter.Type.STRING, 'square'),
-            Parameter('center_x', Parameter.Type.DOUBLE, cx),
-            Parameter('center_y', Parameter.Type.DOUBLE, cy),
+            Parameter('square_center_x', Parameter.Type.DOUBLE, cx),
+            Parameter('square_center_y', Parameter.Type.DOUBLE, cy),
             Parameter('square_side', Parameter.Type.DOUBLE, side),
         ]
     )
+    resolved_cx, resolved_cy = node.get_pattern_center()
+    assert pytest.approx(resolved_cx, abs=1e-6) == cx
+    assert pytest.approx(resolved_cy, abs=1e-6) == cy
+
     half = side / 2.0
     for px, py, _ in node.full_points:
         assert cx - half - 1e-5 <= px <= cx + half + 1e-5
@@ -175,18 +159,34 @@ def test_global_center_square_shift():
     node.destroy_node()
 
 
-def test_global_center_line_shift():
-    """Verify that a line starts from center_x and center_y when x_initial/y_initial omitted."""
-    cx, cy = -1.2, 0.3
+def test_square_wave_center_configuration():
+    """Verify square wave center coordinates shift the generated square wave path."""
+    cx, cy = 0.5, 0.2
+    node = TrajectoryGeneratorNode(
+        parameter_overrides=[
+            Parameter('pattern', Parameter.Type.STRING, 'square_wave'),
+            Parameter('wave_center_x', Parameter.Type.DOUBLE, cx),
+            Parameter('wave_center_y', Parameter.Type.DOUBLE, cy),
+        ]
+    )
+    resolved_cx, resolved_cy = node.get_pattern_center()
+    assert pytest.approx(resolved_cx, abs=1e-6) == cx
+    assert pytest.approx(resolved_cy, abs=1e-6) == cy
+    node.destroy_node()
+
+
+def test_line_initial_point_configuration():
+    """Verify line path starts from x_initial and y_initial."""
+    x0, y0 = -1.2, 0.3
     node = TrajectoryGeneratorNode(
         parameter_overrides=[
             Parameter('pattern', Parameter.Type.STRING, 'line'),
-            Parameter('center_x', Parameter.Type.DOUBLE, cx),
-            Parameter('center_y', Parameter.Type.DOUBLE, cy),
+            Parameter('x_initial', Parameter.Type.DOUBLE, x0),
+            Parameter('y_initial', Parameter.Type.DOUBLE, y0),
             Parameter('length', Parameter.Type.DOUBLE, 1.0),
         ]
     )
     first_pt = node.full_points[0]
-    assert pytest.approx(first_pt[0], abs=1e-5) == cx
-    assert pytest.approx(first_pt[1], abs=1e-5) == cy
+    assert pytest.approx(first_pt[0], abs=1e-5) == x0
+    assert pytest.approx(first_pt[1], abs=1e-5) == y0
     node.destroy_node()

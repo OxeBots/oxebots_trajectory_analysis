@@ -33,62 +33,55 @@ O módulo adota uma abordagem discretizada tanto no planejamento quanto na captu
 
 ## Configuração de Coordenadas e Meia Quadra (`config/trajectory_config.yaml`)
 
-Todas as coordenadas geométricas de centro e parâmetros de trajetória podem ser facilmente editadas no arquivo de configuração YAML:
+As coordenadas de centro e parâmetros geométricos de cada figura são configurados individualmente no arquivo YAML:
 [`config/trajectory_config.yaml`](file:///home/matheusbreno/ws/software_ws/src/oxebots_trajectory_analysis/config/trajectory_config.yaml).
 
 ### Teste em Meia Quadra
 O campo oficial da **Entry Division** possui dimensões de **4.5m de comprimento por 3.0m de largura** (X varia de $-2.25\text{m}$ a $+2.25\text{m}$, e Y de $-1.50\text{m}$ a $+1.50\text{m}$).
 
-Se você possui apenas **metade da quadra para realizar os testes**, basta alterar as coordenadas globais de centro:
-* **Meia quadra esquerda:** `center_x: -1.0`, `center_y: 0.0`
-* **Meia quadra direita:** `center_x: 1.0`, `center_y: 0.0`
-* **Centro total do campo:** `center_x: 0.0`, `center_y: 0.0`
-
-Todas as figuras (círculo, quadrado, onda quadrada e reta) assumem `center_x` e `center_y` automaticamente como origem/centro.
+Para testar em **meia quadra**, basta definir as coordenadas de centro da figura desejada (por exemplo, `circle_center_x: -1.0` e `circle_center_y: 0.0` para meia quadra esquerda):
 
 ```yaml
-# config/trajectory_config.yaml
 trajectory_generator_node:
   ros__parameters:
-    center_x: -1.0   # Centro deslocado para meia quadra esquerda
-    center_y: 0.0
     pattern: "circle"
+
+    # Circle configuration
+    circle_center_x: -1.0
+    circle_center_y: 0.0
     circle_radius: 0.8
-    total_points: 150
 ```
 
 > [!TIP]
-> Também é possível sobrepor as coordenadas diretamente via linha de comando no launch:
-> `ros2 launch oxebots_trajectory_analysis trajectory_benchmark.launch.py center_x:=-1.0 center_y:=0.0`
+> Também é possível sobrepor os parâmetros diretamente na linha de comando do launch:
+> `ros2 launch oxebots_trajectory_analysis trajectory_benchmark.launch.py circle_center_x:=-1.0 circle_center_y:=0.0`
 
 ---
 
 ## Geometria e Dimensões dos Padrões
 
-O campo oficial da **Entry Division** possui dimensões de **4.5m de comprimento por 3.0m de largura**. O centro padrão do campo é a origem das coordenadas: **$(x=0.0, y=0.0)$**, a menos que configurado em `center_x` e `center_y`.
-
 ### 1. Círculo (`circle`)
-* **Centro:** $(x = \text{center\_x},\, y = \text{center\_y})$ (padrão: $(0.0, 0.0)$).
-* **Raio ($R$):** **$0.80\,\text{m}$** (diâmetro de $1.60\,\text{m}$).
-* **Ponto Inicial:** **$(x = \text{center\_x} + 0.80\,\text{m},\, y = \text{center\_y})$**
+* **Centro:** $(x = \text{circle\_center\_x},\, y = \text{circle\_center\_y})$ (padrão: $(0.0, 0.0)$).
+* **Raio ($R$):** **$0.80\,\text{m}$** (diâmetro de $1.60\,\text{m}$, configurável via `circle_radius`).
+* **Ponto Inicial:** **$(x = \text{circle\_center\_x} + \text{circle\_radius},\, y = \text{circle\_center\_y})$**
 * **Sentido:** **Anti-horário**.
 * **Compensação de Curvatura:** Possui termo feedforward geométrico ($\Delta r \approx L^2 / 2R$) e feedback proporcional radial para cancelar o corte de corda inerente ao *Pure Pursuit*.
 
 ### 2. Quadrado (`square`)
-* **Centro:** $(x = \text{center\_x},\, y = \text{center\_y})$ (padrão: $(0.0, 0.0)$).
-* **Tamanho do Lado:** **$1.40\,\text{m}$** ($\pm 0.70\,\text{m}$ do centro).
-* **Ponto Inicial:** **$(\text{center\_x} - 0.70\,\text{m},\, \text{center\_y} - 0.70\,\text{m})$** (canto inferior esquerdo).
+* **Centro:** $(x = \text{square\_center\_x},\, y = \text{square\_center\_y})$ (padrão: $(0.0, 0.0)$).
+* **Tamanho do Lado:** **$1.40\,\text{m}$** (configurável via `square_side`).
+* **Ponto Inicial:** **$(\text{square\_center\_x} - \text{side}/2,\, \text{square\_center\_y} - \text{side}/2)$** (canto inferior esquerdo).
 * **Sequência dos Vértices:** Sentido anti-horário percorrendo os 4 vértices sequencialmente.
 
 ### 3. Onda Quadrada (`square_wave`)
-* **Centro:** $(x = \text{center\_x},\, y = \text{center\_y})$ (padrão: $(0.0, 0.0)$).
-* **Amplitude ($A$):** **$0.50\,\text{m}$** (degrau pico-a-pico de $1.0\,\text{m}$, variando entre $\text{center\_y} - 0.50\,\text{m}$ e $\text{center\_y} + 0.50\,\text{m}$).
-* **Comprimento de cada degrau em X:** **$0.60\,\text{m}$**.
-* **Ponto Inicial:** **$(\text{center\_x} - 1.20\,\text{m},\, \text{center\_y} - 0.50\,\text{m})$**
+* **Centro:** $(x = \text{wave\_center\_x},\, y = \text{wave\_center\_y})$ (padrão: $(0.0, 0.0)$).
+* **Amplitude ($A$):** **$0.50\,\text{m}$** (configurável via `wave_amplitude`).
+* **Comprimento do degrau em X:** **$0.60\,\text{m}$** (configurável via `wave_step_length`).
+* **Ponto Inicial:** **$(\text{wave\_center\_x} - \text{total\_length}/2,\, \text{wave\_center\_y} - A)$**
 * **Propósito:** Medir a resposta ao degrau (*step response*), o sobressinal (*overshoot*) e o tempo de estabilização do robô após curvas de 90°.
 
 ### 4. Reta (`line`)
-* **Ponto Inicial:** $(\text{center\_x}, \text{center\_y})$ caso `x_initial` e `y_initial` não sejam definidos.
+* **Ponto Inicial:** $(x = \text{x\_initial},\, y = \text{y\_initial})$ (padrão: $(-1.0, -1.0)$).
 * **Comprimento:** $1.00\,\text{m}$ (configurável via `length`).
 * **Ângulo:** $1.57\,\text{rad}$ ($90^\circ$, configurável via `line_angle`).
 
